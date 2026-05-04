@@ -16,8 +16,8 @@ class Runner:
         Returns a results dictionary with high level stats.
         """
         results = {
-            self._agent1.name: {"wins": 0, "total_chips": 0},
-            self._agent2.name: {"wins": 0, "total_chips": 0}
+            self.agent1.name: {"wins": 0, "total_chips": 0},
+            self.agent2.name: {"wins": 0, "total_chips": 0}
         }
 
         for game_num in range(num_games):
@@ -42,8 +42,8 @@ class Runner:
         # to our agent objects
         pz_agents = self.env.get_agents()
         self.agents = {
-            pz_agents[0]: self._agent1,
-            pz_agents[1]: self._agent2
+            pz_agents[0]: self.agent1,
+            pz_agents[1]: self.agent2
         }
 
         # Reset all agents at the start of each hand
@@ -86,12 +86,13 @@ class Runner:
     def _get_chip_counts(self):
         """
         Retrieve the current chip count for each agent.
-        PettingZoo stores this in the info dict returned by env.last().
+        Uses the rewards accumulation from PettingZoo.
         """
         chip_counts = {}
         for pz_name, agent in self.agents.items():
-            _, _, _, _, info = self.env.last()
-            chip_counts[agent.name] = info.get("chips", 0)
+            # Access rewards directly from the environment
+            reward = self.env.env.rewards.get(pz_name, 0)
+            chip_counts[agent.name] = reward
         return chip_counts
 
     def _compute_outcome(self, starting_chips, ending_chips):

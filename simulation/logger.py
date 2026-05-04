@@ -61,7 +61,13 @@ class Logger:
         Called after every decision made during a hand.
         Appends a row to the action log CSV.
         """
-        action_labels = {0: "fold", 1: "call", 2: "raise"}
+        action_labels = {
+            0: "fold",
+            1: "call",
+            2: "raise_half_pot",
+            3: "raise_full_pot",
+            4: "all_in"
+        }
         with open(self.action_log_path, 'a', newline='') as f:
             writer = csv.writer(f)
             writer.writerow([

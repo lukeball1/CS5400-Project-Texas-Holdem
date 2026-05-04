@@ -6,9 +6,9 @@ import numpy as np
 
 class MCCFRAgent(BaseAgent):
     
-    def __init__(self, strategy_path=None):
+    def __init__(self, strategy_path=None, name="MCCFRAgent"):
         self.strategy = StrategyManager()
-        super().__init__(name="MCCFRAgent")
+        super().__init__(name=name)
         
         # if strategy exists, load it.
         if strategy_path:
@@ -58,13 +58,20 @@ class MCCFRAgent(BaseAgent):
         return tuple(np.where(obs[:52] == 1)[0])
 
     def _extract_community_cards(self, obs):
-        return tuple(np.where(obs[52:104] == 1)[0])
+        # Community cards are in the main 52-card section, excluding hole cards
+        hole_card_indices = set(np.where(obs[:52] == 1)[0])
+        community_indices = [i for i in range(52) if i not in hole_card_indices and obs[i] == 1]
+        return tuple(community_indices)
 
     def _extract_round(self, obs):
-        rounds = ['preflop', 'flop', 'turn', 'river']
-        round_vec = obs[104:108]
-        idx = int(np.argmax(round_vec))
-        return rounds[idx]
+        rounds = ['preflop', 'flop', 'turn', 'river', 'showdown']
+        # Round indicator is a scalar at index 53
+        round_idx = int(obs[53])
+        if round_idx < len(rounds):
+            return rounds[round_idx]
+        else:
+            # Fallback for any unexpected values
+            return 'showdown'
 
     def _extract_action_history(self, obs):
         """
