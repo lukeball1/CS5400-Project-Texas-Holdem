@@ -19,6 +19,9 @@ class BaseAgent(ABC):
         Override if your agent needs to reset internal state.
         """
         pass
+    
+    def record_action(self, action):
+        pass  # Override if agent tracks action history
 
     def __str__(self):
         return self.name
