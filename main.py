@@ -2,7 +2,7 @@ import argparse
 from game.environment import PokerEnvironment
 from agents.mccfr_agent import MCCFRAgent
 # from agents.heuristic_agent import HeuristicAgent
-# from agents.mcts_agent import MCTSAgent
+from agents.mcts_agent import MCTS_Agent
 from simulation.runner import Runner
 from simulation.logger import Logger
 
@@ -54,7 +54,8 @@ def main(args):
 
     matchups = {
         # "mccfr_vs_heuristic": (mccfr, heuristic),
-        # "mccfr_vs_mcts":      (mccfr, mcts),
+        "mccfr_vs_mcts":      (MCCFRAgent(strategy_path=args.strategy_path, name="MCCFRAgent_1"), 
+                                MCTS_Agent()),
         # "heuristic_vs_mcts":  (heuristic, mcts),
         "mccfr_vs_mccfr":     (MCCFRAgent(strategy_path=args.strategy_path, name="MCCFRAgent_1"), 
                                 MCCFRAgent(strategy_path=args.strategy_path, name="MCCFRAgent_2"))
