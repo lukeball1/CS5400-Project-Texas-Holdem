@@ -2,7 +2,7 @@ import numpy as np
 from mccfr.info_set import InfoSet
 from mccfr.strategy import StrategyManager
 
-NUM_ACTIONS = 3  # 0=fold, 1=call, 2=raise
+NUM_ACTIONS = 5  # 0=fold, 1=call, 2=raise-half, 3=raise-full, 4=raise-all-in
 
 class MCCFRTrainer:
 
@@ -98,13 +98,17 @@ class MCCFRTrainer:
 
     def _extract_community_cards(self, obs):
         """Extract community card indices from the observation vector."""
-        # Community cards follow hole cards in the observation vector
-        return tuple(np.where(obs[52:104] == 1)[0])
+        # Community cards are in the main 52-card section, excluding hole cards
+        hole_card_indices = set(np.where(obs[:52] == 1)[0])
+        community_indices = [i for i in range(52) if i not in hole_card_indices and obs[i] == 1]
+        return tuple(community_indices)
 
     def _extract_round(self, obs):
         """Extract the current round from the observation vector."""
-        # PettingZoo encodes the round as a one-hot in the observation
-        rounds = ['preflop', 'flop', 'turn', 'river']
-        round_vec = obs[104:108]
-        idx = int(np.argmax(round_vec))
-        return rounds[idx]
+        # Round indicator is a scalar at index 53
+        rounds = ['preflop', 'flop', 'turn', 'river', 'showdown']
+        round_idx = int(obs[53])
+        if round_idx < len(rounds):
+            return rounds[round_idx]
+        else:
+            return 'showdown'

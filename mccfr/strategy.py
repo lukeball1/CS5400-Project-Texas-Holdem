@@ -1,7 +1,7 @@
 import numpy as np
 from mccfr.nodes import CFRNode
 
-NUM_ACTIONS = 3  # 0=fold, 1=call, 2=raise
+NUM_ACTIONS = 5  # 0=fold, 1=call, 2=raise-half, 3=raise-full, 4=raise-all-in
 
 class StrategyManager:
 
