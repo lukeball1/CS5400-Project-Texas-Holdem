@@ -92,7 +92,7 @@ class MCTS_Agent:
             action = random.choice(legal_moves)
         
         action_bonus = self.action_quality(action, win_probability)
-        return win_probability + action_bonus
+        return win_probability * 0.7 + action_bonus * 0.3
     
     def action_quality(self, action, win_probability):
         #0 = Fold
@@ -105,11 +105,11 @@ class MCTS_Agent:
         elif action == 1:
             return 0.5
         elif action == 2:
-            return win_probability
+            return win_probability * 0.7
         elif action == 3:
-            return win_probability
+            return win_probability * 0.85
         elif action == 4:
-            return win_probability
+            return win_probability ** 1.5
         else:
             return 0.5
     
