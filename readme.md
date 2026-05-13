@@ -10,5 +10,8 @@ python main.py run --matchup mccfr_vs_heuristic
 # Run MCCFR vs MCTS for 500 games without logging
 python main.py run --matchup mccfr_vs_mcts --num_games 500 --no_log
 
-# Run Heuristic vs MCTS
+# Full list of possible matchups
+python main.py run --matchup mccfr_vs_heuristic
+python main.py run --matchup mccfr_vs_mcts
 python main.py run --matchup heuristic_vs_mcts
+python main.py run --matchup mccfr_vs_mccfr
