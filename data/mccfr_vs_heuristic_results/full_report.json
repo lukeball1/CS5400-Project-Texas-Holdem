@@ -1,0 +1,31 @@
+{
+  "num_games": 10000,
+  "win_rates": {
+    "MCCFRAgent": 55.35,
+    "HeuristicAgent": 41.75
+  },
+  "avg_chip_delta": {
+    "MCCFRAgent": -8.64,
+    "HeuristicAgent": 8.64
+  },
+  "chip_variance": {
+    "MCCFRAgent": 5172.07,
+    "HeuristicAgent": 5172.07
+  },
+  "action_distribution": {
+    "MCCFRAgent": {
+      "fold": 0.0,
+      "call": 64.86,
+      "raise_half_pot": 10.21,
+      "raise_full_pot": 14.52,
+      "all_in": 10.41
+    },
+    "HeuristicAgent": {
+      "fold": 5.81,
+      "call": 57.85,
+      "raise_half_pot": 22.98,
+      "raise_full_pot": 11.48,
+      "all_in": 1.88
+    }
+  }
+}
