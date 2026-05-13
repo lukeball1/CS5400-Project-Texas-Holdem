@@ -26,11 +26,16 @@ class CFRNode:
         return strategy
 
     def get_average_strategy(self):
-        """
-        Returns the average strategy over all training iterations.
-        This is what the agent actually uses at inference time.
-        """
         total = self.strategy_sum.sum()
         if total > 0:
             return self.strategy_sum / total
-        return np.ones(NUM_ACTIONS) / NUM_ACTIONS
+        
+        # Bias toward calling instead of uniform fallback
+        # when this node has never been visited during training
+        fallback = np.zeros(NUM_ACTIONS)
+        fallback[0] = 0.00  # fold   — never fold as default
+        fallback[1] = 0.60  # call   — safest default play
+        fallback[2] = 0.15  # raise half
+        fallback[3] = 0.15  # raise full
+        fallback[4] = 0.10  # all in
+        return fallback

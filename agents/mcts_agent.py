@@ -1,6 +1,7 @@
 import math
 import random
 from agents.base_agent import BaseAgent
+import numpy as np
 
 class MCTSNode:
     """
@@ -72,34 +73,83 @@ class MCTS_Agent(BaseAgent):
         if isinstance(observation, dict):
             observation = observation.get("observation", observation)
 
-        if len(observation) == 0:
+        card_indices = np.where(np.array(observation[:52]) == 1)[0]
+
+        if len(card_indices) == 0:
             return 0.5
 
-        # Actual layout from PettingZoo (54 elements total):
-        # [0:52]  → one-hot card vector (hole + community cards combined)
-        # [52]    → normalized pot size
-        # [53]    → normalized call amount / chip count
+        # Correct rank mapping per PettingZoo documentation:
+        # 0=Ace, 1=2, 2=3 ... 9=10, 10=Jack, 11=Queen, 12=King
+        # Ace needs special high value treatment
+        raw_ranks = [int(idx % 13) for idx in card_indices]
+        suits     = [int(idx // 13) for idx in card_indices]
 
-        card_vec  = observation[:52]
-        pot_size  = observation[52]
-        call_amt  = observation[53]
+        # Convert to meaningful rank values where Ace is highest
+        # 0(Ace)=14, 1(2)=2, 2(3)=3 ... 12(King)=13
+        def rank_value(r):
+            return 14 if r == 0 else r + 1
 
-        # Count active cards — max is 7 (2 hole + 5 community)
-        num_cards = sum(card_vec)
-        card_strength = min(1.0, num_cards / 7.0)
+        rank_values = [rank_value(r) for r in raw_ranks]
 
-        # Factor in pot odds — if call amount is high relative
-        # to pot, we need a stronger hand to justify calling
-        if pot_size > 0:
-            pot_odds = call_amt / (pot_size + call_amt + 1e-6)
-        else:
-            pot_odds = 0.0
+        strength = 0.0
 
-        # Combine card strength with pot odds adjustment
-        # Higher pot odds = need stronger hand to call profitably
-        strength = card_strength * (1.0 - pot_odds * 0.3)
+        # High card contribution — Ace(14) is strongest
+        max_rank = max(rank_values)
+        strength += ((max_rank - 2) / 12.0) * 0.20
 
-        return max(0.0, min(1.0, strength))
+        # Count occurrences of each rank for made hand detection
+        rank_counts = {}
+        for r in rank_values:
+            rank_counts[r] = rank_counts.get(r, 0) + 1
+
+        max_count = max(rank_counts.values())
+        pairs     = sum(1 for count in rank_counts.values() if count >= 2)
+
+        # Made hand bonuses
+        if max_count == 4:
+            strength += 0.75   # four of a kind
+        elif max_count == 3 and pairs >= 2:
+            strength += 0.65   # full house
+        elif max_count == 3:
+            strength += 0.50   # three of a kind
+        elif max_count == 2 and pairs >= 2:
+            strength += 0.35   # two pair
+        elif max_count == 2:
+            strength += 0.20   # one pair
+
+        # Flush detection — 5+ cards of same suit
+        suit_counts = {}
+        for s in suits:
+            suit_counts[s] = suit_counts.get(s, 0) + 1
+        max_suit_count = max(suit_counts.values())
+
+        if max_suit_count >= 5:
+            strength += 0.25   # flush
+        elif max_suit_count >= 3:
+            strength += 0.03   # flush draw
+
+        # Straight detection
+        sorted_ranks = sorted(set(rank_values))
+
+        # Handle Ace-low straight (A-2-3-4-5)
+        if 14 in sorted_ranks:
+            sorted_ranks = [1] + sorted_ranks  # add low Ace
+
+        consecutive     = 1
+        max_consecutive = 1
+        for i in range(1, len(sorted_ranks)):
+            if sorted_ranks[i] == sorted_ranks[i-1] + 1:
+                consecutive += 1
+                max_consecutive = max(max_consecutive, consecutive)
+            else:
+                consecutive = 1
+
+        if max_consecutive >= 5:
+            strength += 0.25   # straight
+        elif max_consecutive >= 4:
+            strength += 0.03   # straight draw
+
+        return min(1.0, float(strength))
     
     def act(self, observation, action_mask):
         """
@@ -191,37 +241,25 @@ class MCTS_Agent(BaseAgent):
         return random.choices(legal_moves, weights=normalized, k=1)[0]
     
     def _evaluate_action(self, action, hand_strength):
-        """
-        Heuristically evaluate the quality of an action given current hand strength.
-        
-        Actions:
-            0 = Fold: Give up the current pot. Bad when hand is strong.
-            1 = Call: Match current bet. Neutral option.
-            2 = Raise 50%: Moderate bet increase. Better with stronger hands.
-            3 = Raise 100%: Aggressive bet. Good with very strong hands.
-            4 = Raise All-In: Maximum risk/reward. Depends on variance.
-        
-        Returns: float between 0 and 1
-        """
-        if action == 0:  # Fold
-            # Folding is bad when you have a strong hand
-            return 1.0 - hand_strength
-        
+        if action == 0:   # Fold
+            # Cap at 0.3 — fold should never outscore calling
+            # Old formula (1.0 - hand_strength) gave fold 0.80-0.93
+            # preflop which caused 36% fold rate
+            return min(0.3, 1.0 - hand_strength)
+
         elif action == 1:  # Call
-            # Calling is a neutral, passive option
-            return 0.5
-        
-        elif action == 2:  # Raise 50% of pot
-            # Small raise - slightly better with strong hands
+            # Floor at 0.4 — calling always beats folding
+            return max(0.4, 0.5)
+
+        elif action == 2:  # Raise half pot
             return 0.55 + (hand_strength * 0.15)
-        
-        elif action == 3:  # Raise 100% of pot
-            # Larger raise - significantly better with strong hands
+
+        elif action == 3:  # Raise full pot
             return 0.45 + (hand_strength * 0.40)
-        
-        elif action == 4:  # All-In
-            return hand_strength ** 2  # Only good with very strong hands
-                
+
+        elif action == 4:  # All in
+            return hand_strength ** 2
+
         else:
             return 0.5
     

@@ -5,6 +5,8 @@ from agents.heuristic_agent import HeuristicAgent
 from agents.mcts_agent import MCTS_Agent
 from simulation.runner import Runner
 from simulation.logger import Logger
+from metrics.tracker import Tracker
+from metrics.reporter import Reporter
 
 # --- Default configuration ---
 DEFAULT_TRAIN_ITERATIONS = 500000
@@ -18,6 +20,19 @@ ACTION_LABELS = {
     3: "raise_full_pot",
     4: "all_in"
 }
+
+def report(args):
+    """Load the latest logs and generate all charts and summary."""
+    tracker = Tracker(log_dir="data/logs")
+
+    if args.run_id:
+        tracker.load_specific(args.run_id)
+    else:
+        tracker.load_latest()
+
+    reporter = Reporter(tracker, output_dir="data/reports")
+    reporter.generate_all()
+
 
 def train(args):
     """
@@ -94,6 +109,16 @@ if __name__ == "__main__":
         default=DEFAULT_STRATEGY_PATH,
         help=f"Where to save the trained strategy (default: {DEFAULT_STRATEGY_PATH})"
     )
+    
+    # Report subcommand
+    # Usage: python main.py report
+    report_parser = subparsers.add_parser("report", help="Generate reports from logs")
+    report_parser.add_argument(
+        "--run_id",
+        type=str,
+        default=None,
+        help="Specific run ID to report on (default: latest)"
+)
 
     # --- Run subcommand ---
     # Usage: python main.py run --matchup mccfr_vs_heuristic
@@ -133,3 +158,5 @@ if __name__ == "__main__":
         train(args)
     elif args.command == "run":
         main(args)
+    elif args.command == "report":
+        report(args)

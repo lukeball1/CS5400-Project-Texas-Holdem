@@ -36,6 +36,12 @@ class StrategyManager:
         respecting the legal action mask from PettingZoo.
         """
         strategy = self.get_average_strategy(info_set_key)
+        
+        # Cap fold probability at 15% maximum
+        if strategy[0] > 0.15:
+            excess = strategy[0] - 0.15
+            strategy[0] = 0.15
+            strategy[1] += excess  # redistribute to call
 
         # Zero out illegal actions and renormalize
         masked = strategy * action_mask

@@ -2,7 +2,7 @@ import numpy as np
 from mccfr.info_set import InfoSet
 from mccfr.strategy import StrategyManager
 
-NUM_ACTIONS = 5  # 0=fold, 1=call, 2=raise-half, 3=raise-full, 4=raise-all-in
+NUM_ACTIONS = 5  # 0=fold, 1=call, 2=raise-half, 3=raise-full, 4=all-in
 
 class MCCFRTrainer:
 
@@ -38,11 +38,14 @@ class MCCFRTrainer:
         obs, action_mask = self.env.observe(agent_name)
 
         # Build the information set key for this decision point
+        # In trainer.py _traverse()
         info_set = InfoSet(
             hole_cards=self._extract_hole_cards(obs),
             community_cards=self._extract_community_cards(obs),
             action_history=action_history,
-            round_name=self._extract_round(obs)
+            round_name=self._extract_round(obs),
+            my_chips=obs[52],        # replaces pot_size
+            opponent_chips=obs[53]   # replaces call_amt
         )
         key = info_set.key()
 
@@ -82,7 +85,6 @@ class MCCFRTrainer:
         regret_updates = np.zeros(NUM_ACTIONS)
         for a in range(NUM_ACTIONS):
             if action_mask[a]:
-                # Regret = counterfactual value of action a - actual utility
                 regret_updates[a] = opponent_reach * (
                     (1.0 if a == action else 0.0) * utility - utility
                 )
@@ -91,24 +93,45 @@ class MCCFRTrainer:
         return utility
 
     def _extract_hole_cards(self, obs):
-        """Extract hole card indices from the observation vector."""
-        # PettingZoo encodes cards as one-hot vectors in the observation
-        # The first 52 values represent the player's hole cards
-        return tuple(np.where(obs[:52] == 1)[0])
+        """
+        Extract active card indices from the combined card vector.
+        All cards — hole and community — share obs[:52].
+        We treat all active indices as the full visible hand.
+        """
+        return tuple(np.where(np.array(obs[:52]) == 1)[0])
 
     def _extract_community_cards(self, obs):
-        """Extract community card indices from the observation vector."""
-        # Community cards are in the main 52-card section, excluding hole cards
-        hole_card_indices = set(np.where(obs[:52] == 1)[0])
-        community_indices = [i for i in range(52) if i not in hole_card_indices and obs[i] == 1]
-        return tuple(community_indices)
+        """
+        Community cards cannot be separated from hole cards in
+        this observation layout — return empty tuple.
+        Round context is captured via _extract_round() instead.
+        """
+        return ()
 
     def _extract_round(self, obs):
-        """Extract the current round from the observation vector."""
-        # Round indicator is a scalar at index 53
-        rounds = ['preflop', 'flop', 'turn', 'river', 'showdown']
-        round_idx = int(obs[53])
-        if round_idx < len(rounds):
-            return rounds[round_idx]
+        """
+        Approximate current round from the number of active cards
+        in obs[:52], since there is no explicit round indicator.
+
+        Confirmed observation layout (54 elements):
+            obs[0:52]  = combined one-hot card vector
+            obs[52]    = normalized pot size
+            obs[53]    = normalized call amount
+
+        Card counts per round:
+            preflop = 2 cards
+            flop    = 5 cards  (2 hole + 3 community)
+            turn    = 6 cards  (2 hole + 4 community)
+            river   = 7 cards  (2 hole + 5 community)
+        """
+        # Derive round from number of active cards
+        # preflop=2 cards, postflop=5-7 cards
+        num_cards = int(np.sum(obs[:52]))
+        if num_cards <= 2:
+            return 'preflop'
+        elif num_cards <= 5:
+            return 'flop'
+        elif num_cards == 6:
+            return 'turn'
         else:
-            return 'showdown'
+            return 'river'

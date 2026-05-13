@@ -33,13 +33,15 @@ class MCCFRAgent(BaseAgent):
         Builds the information set from the observation, then
         samples an action from the converged average strategy.
         """
+        
         info_set = InfoSet(
             hole_cards=self._extract_hole_cards(observation),
             community_cards=self._extract_community_cards(observation),
-            action_history=self._extract_action_history(observation),
-            round_name=self._extract_round(observation)
+            action_history=tuple(self.action_history),
+            round_name=self._extract_round(observation),
+            my_chips=observation[52],        # chip stack, not pot size
+            opponent_chips=observation[53]   # chip stack, not call amount
         )
-
         return self.strategy.sample_action(info_set.key(), action_mask)
     
     def reset(self):
